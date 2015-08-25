@@ -1,4 +1,5 @@
 require 'uri'
+require 'byebug'
 
 module Phase5
   class Params
@@ -10,10 +11,14 @@ module Phase5
     # You haven't done routing yet; but assume route params will be
     # passed in as a hash to `Params.new` as below:
     def initialize(req, route_params = {})
+      parse_www_encoded_form(req.query_string) if req.query_string
     end
 
     def [](key)
+      @params[key.to_sym]
     end
+
+    attr_reader :params
 
     # this will be useful if we want to `puts params` in the server log
     def to_s
@@ -22,18 +27,59 @@ module Phase5
 
     class AttributeNotFoundError < ArgumentError; end;
 
-    private
+    # private
     # this should return deeply nested hash
     # argument format
     # user[address][street]=main&user[address][zip]=89436
     # should return
     # { "user" => { "address" => { "street" => "main", "zip" => "89436" } } }
     def parse_www_encoded_form(www_encoded_form)
+      hash ||= {}
+      query_array = URI::decode_www_form(www_encoded_form)
+
+      query_array.each do |single_query|
+        key_list = parse_key(single_query[0])
+        length = key_list.length
+
+        next_hash = ""
+        0.upto(length - 1) do |index|
+          key = key_list[index]
+          if index == 0
+            unless hash.has_key?(key)
+              if length == 1
+                hash[key] = single_query[1]
+              else
+                hash[key] = {}
+              end
+            end
+            next_hash = hash[key]
+          elsif (index == length - 1
+            current_hash = next_hash
+            current_hash[key] = single_query[1]
+          else
+            current_hash = next_hash
+            current_hash[key] = {} unless current_hash.has_key?(key)
+            next_hash = current_hash[key]
+          end
+        end
+      end
+      
+      debugger
+      hash
     end
 
     # this should return an array
     # user[address][street] should return ['user', 'address', 'street']
     def parse_key(key)
+      key.split(/\]\[|\[|\]/)
+    end
+
+    def key_list_to_hash(key_list, value, hash)
+      if key_list.length == 1
+        hash[key_list.first] = value
+      else
+
+      end
     end
   end
 end
