@@ -11,11 +11,26 @@ module Phase5
     # You haven't done routing yet; but assume route params will be
     # passed in as a hash to `Params.new` as below:
     def initialize(req, route_params = {})
-      parse_www_encoded_form(req.query_string) if req.query_string
+      @params = parse_www_encoded_form(req.query_string) if req.query_string
+      if req.body
+        if @params
+          @params.merge(parse_www_encoded_form(req.body))
+        else
+          @params = parse_www_encoded_form(req.body)
+        end
+      end
+      if route_params
+        route_params = Hash[route_params.map { |key,value|  [key.to_s,value] }]
+        if @params
+          @params.merge(route_params)
+        else
+          @params = route_params
+        end
+      end
     end
 
     def [](key)
-      @params[key.to_sym]
+      @params[key.to_s]
     end
 
     attr_reader :params
@@ -43,7 +58,7 @@ module Phase5
 
         next_hash = ""
         0.upto(length - 1) do |index|
-          key = key_list[index]
+          key = key_list[index].to_s
           if index == 0
             unless hash.has_key?(key)
               if length == 1
@@ -53,7 +68,7 @@ module Phase5
               end
             end
             next_hash = hash[key]
-          elsif (index == length - 1
+          elsif index == length - 1
             current_hash = next_hash
             current_hash[key] = single_query[1]
           else
@@ -63,8 +78,7 @@ module Phase5
           end
         end
       end
-      
-      debugger
+
       hash
     end
 
@@ -74,12 +88,5 @@ module Phase5
       key.split(/\]\[|\[|\]/)
     end
 
-    def key_list_to_hash(key_list, value, hash)
-      if key_list.length == 1
-        hash[key_list.first] = value
-      else
-
-      end
-    end
   end
 end
